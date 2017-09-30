@@ -11,13 +11,12 @@ var client = new Twitter({
     access_token_secret: process.env.TWITTER_TOKEN_SECRET
 
 })
-var lastTweetAt;
 
 winston.info("Creating stream");
 var stream = client.stream('statuses/filter', {follow: '851771584079593472'});
 winston.info("Stream created!")
 stream.on('data', function(event){
-    var now = Date.now()
+    event.time = Date.now();
     winston.info("Tweet recived: " + event.text);
     var path = createFileString();
     winston.info("Looking for previously saved tweets in: " + path + "...");
@@ -28,7 +27,6 @@ stream.on('data', function(event){
             try{
                 var tweets = JSON.parse(data);
                 winston.info("Sucess!");
-                event.delta = now-lastTweetAt;
                 tweets.push(event);
                 writeToFile(path, tweets);
             }catch(error){
@@ -38,16 +36,18 @@ stream.on('data', function(event){
         }else{
             winston.info("No privious tweets found")
             winston.info("Starting scheduling process...")
-            event.delta=0;
             writeToFile(path, [event]);
         }
-        lastTweetAt = now;
     })    
 });
 
 stream.on('error', function(error){
     console.log(error);
 })
+
+stream.on('end', function(reason){
+    console.log("connection lost!");
+});
 
 
 function writeToFile(path, tweets){
