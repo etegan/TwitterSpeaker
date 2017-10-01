@@ -1,63 +1,144 @@
-var Twitter = require('twitter');
-var fs = require('fs')
-var createFileString = require('./utils').createFileString;
-var winston = require('winston');
+var Twitter = require("twitter");
+var fs = require("fs");
+var createFileString = require("./utils").createFileString;
+var winston = require("winston");
+var FormData = require("form-data");
+var path = require("path");
+var mkdirp = require("mkdirp");
+var spawn = require("child_process").spawn;
+var format = require("util").format;
+var Promise = require("bluebird");
 
-winston.info("Initializing client");
+var  TOMORROW = 1;
+
 var client = new Twitter({
     consumer_key: process.env.TWITTER_CONSUMER_KEY,
     consumer_secret: process.env.TWITTER_CONSUMER_SECRET,
     access_token_key: process.env.TWITTER_TOKEN_KEY,
     access_token_secret: process.env.TWITTER_TOKEN_SECRET
 
-})
-
-winston.info("Creating stream");
-var stream = client.stream('statuses/filter', {follow: '851771584079593472'});
-winston.info("Stream created!")
-stream.on('data', function(event){
-    event.time = Date.now();
-    winston.info("Tweet recived: " + event.text);
-    var path = createFileString();
-    winston.info("Looking for previously saved tweets in: " + path + "...");
-    fs.readFile(path, 'utf8', function(err, data){
-        if(!err){
-            winston.info("Tweets found!");
-            winston.info("Parsing file data..");
-            try{
-                var tweets = JSON.parse(data);
-                winston.info("Sucess!");
-                tweets.push(event);
-                writeToFile(path, tweets);
-            }catch(error){
-                winston.error("Could not parse the file data")
-                winston.error(error);
-            }
-        }else{
-            winston.info("No privious tweets found")
-            winston.info("Starting scheduling process...")
-            writeToFile(path, [event]);
-        }
-    })    
 });
 
-stream.on('error', function(error){
-    console.log(error);
-})
+var stream = client.stream("statuses/filter", {follow: "851771584079593472"});
+stream.on("data", function(data){
+    winston.info("Got tweet: " + data.text);
+    scheduleReading(data);
+});
+console.log("Stream created!");
 
-stream.on('end', function(reason){
+stream.on("error", function(error){
+    console.log(error);
+});
+
+stream.on("end", function(reason){
     console.log("connection lost!");
 });
 
+var testTweet = {
+    lang: 'en',
+    text: 'Here is some text for testing scheduling',
+}
 
-function writeToFile(path, tweets){
-    winston.info("Saving tweet to: " + path);
-    fs.writeFile(path, JSON.stringify(tweets), function(err){
-        if(err){
-            winston.error("Could not write to file!"); 
-            winston.error(err);
-        }else{
-            winston.info("Success!");
-        }
+function scheduleReading(tweet){
+    console.log("starting scheduling..");
+    
+    var date = new Date();
+    if(date.getDay() == 2){
+        date.setHours(14);
+    }else{
+        date.setHours(11);
+    }
+    date.setMinutes(0);
+    date.setSeconds(0);
+    date.setDate(date.getDate() + 1);
+    
+    var scheduledDate = calculateDateForTask(date, 4);
+    console.log(scheduledDate);
+    var time = timeForTask(scheduledDate);
+    var pathname = mp3Path(time);
+    var lang = (tweet.lang == "en") ? "karen22k" : "alice22k";
+    mkdirp(path.dirname(pathname));
+    synthesizeText(tweet.text, lang, pathname).then(function(){
+        var at = spawn("at", ['-t', time]);
+        at.stdin.write(format("mpg123 %s\n", pathname));
+        at.stdin.end();
+        at.on("close", function(code){
+            console.log("scheduled for: " + time);
+            console.log("Exited with code: "+ code);
+        });
+        at.stdout.on('data', function(data){
+            process.stdout.write(data);
+        })
+         
+        at.stderr.on('data', function(data){
+            process.stdout.write(data);
+        })
     });
 }
+
+function synthesizeText(text, voice, path){
+    return new Promise(function(resolve, reject){
+        var data = new FormData();
+        data.append("cl_login", process.env.ACAPELA_CL_LOGIN);
+        data.append( "cl_app", process.env.ACAPELA_CL_APP);
+        data.append( "cl_pwd", process.env.ACAPELA_CL_PWD);
+        data.append("req_voice", voice);
+        data.append( "req_text", text);
+        data.append("req_asw_type", "SOUND");
+        data.submit("http://vaas.acapela-group.com/Services/Synthesizer", function(err, res){
+            if(!err){
+                try{
+                    var writeStream = fs.createWriteStream(path);
+                    res.pipe(writeStream);
+                    writeStream.on("close", function(){
+                        resolve();
+                    });
+                }catch(error){
+                    winston.error("Could not write to stream:");
+                    winston.error(error);
+                    reject(error);
+                }
+            }else{
+                winston.error("There was an Error:");
+                winston.error(err)
+                reject(error);
+            }
+
+        });
+    });
+}
+
+function dateString(shift){
+    var date = new Date();
+    date.setDate(date.getDate() + shift);
+    return date.toISOString().substr(0, 10);
+}
+
+function mp3Path(time){
+    return path.resolve("mp3",  dateString(TOMORROW), time);
+}
+
+function timeForTask(date){
+    return string = format("%s%s%s%s.%s",
+        leadingZero(date.getMonth() + 1),
+        leadingZero(date.getDate()),
+        leadingZero(date.getHours()),
+        leadingZero(date.getMinutes()),
+        leadingZero(date.getSeconds()))
+}
+
+function calculateDateForTask(startDate, scale){
+    var now = new Date();
+    var startOfDay = new Date();
+    startOfDay.setHours(0);
+    startOfDay.setMinutes(0);
+    startOfDay.setSeconds(0);
+    var time = startDate.getTime() + Math.floor((now.getTime() - startOfDay.getTime())/scale);
+    return new Date(time); 
+}
+
+function leadingZero(time){
+    return (time < 10 ? "0" : "") + time
+}
+
+scheduleReading(testTweet);
