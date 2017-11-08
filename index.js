@@ -24,23 +24,14 @@ stream.on("data", function(data){
     winston.info("Got tweet: " + data.text);
     scheduleReading(data);
 });
-console.log("Stream created!");
+winston.info("Stream created!");
 
 stream.on("error", function(error){
-    console.log(error);
+    winston.error(error);
 });
-
-stream.on("end", function(reason){
-    console.log("connection lost!");
-});
-
-var testTweet = {
-    lang: 'en',
-    text: 'Here is some text for testing scheduling',
-}
 
 function scheduleReading(tweet){
-    console.log("starting scheduling..");
+    winston.info("starting scheduling..");
     
     var date = new Date();
     if(date.getDay() == 2){
@@ -53,7 +44,7 @@ function scheduleReading(tweet){
     date.setDate(date.getDate() + 1);
     
     var scheduledDate = calculateDateForTask(date, 4);
-    console.log(scheduledDate);
+    winston.info(scheduledDate);
     var time = timeForTask(scheduledDate);
     var pathname = mp3Path(time);
     var lang = (tweet.lang == "en") ? "karen22k" : "alice22k";
@@ -63,8 +54,8 @@ function scheduleReading(tweet){
         at.stdin.write(format("mpg123 %s\n", pathname));
         at.stdin.end();
         at.on("close", function(code){
-            console.log("scheduled for: " + time);
-            console.log("Exited with code: "+ code);
+            winston.info("scheduled for: " + time);
+            winston.info("Exited with code: "+ code);
         });
         at.stdout.on('data', function(data){
             process.stdout.write(data);
