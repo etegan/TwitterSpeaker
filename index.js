@@ -132,4 +132,3 @@ function leadingZero(time){
     return (time < 10 ? "0" : "") + time
 }
 
-scheduleReading(testTweet);
