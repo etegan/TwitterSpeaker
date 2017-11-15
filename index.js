@@ -49,10 +49,7 @@ function scheduleReading(tweet){
     var pathname = mp3Path(time);
     var lang = (tweet.lang == "en") ? "mov_houda_eng22k" : "mov_houda_frf22k";
     mkdirp(path.dirname(pathname));
-    console.log(tweet);
-    winston.info(tweet.truncated);
     var text = tweet.truncated ? tweet.extended_tweet.full_text : tweet.text
-    winston.info(text);
     synthesizeText(text, lang, pathname).then(function(){
         var at = spawn("at", ['-t', time]);
         at.stdin.write(format("mpg123 %s\n", pathname));
@@ -128,7 +125,8 @@ function calculateDateForTask(startDate, scale){
     startOfDay.setHours(0);
     startOfDay.setMinutes(0);
     startOfDay.setSeconds(0);
-    var time = startDate.getTime() + Math.floor((now.getTime() - startOfDay.getTime())/scale);
+    // var time = startDate.getTime() + Math.floor((now.getTime() - startOfDay.getTime())/scale);
+    var time = now.getTime() + 10000
     return new Date(time); 
 }
 
