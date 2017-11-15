@@ -125,8 +125,7 @@ function calculateDateForTask(startDate, scale){
     startOfDay.setHours(0);
     startOfDay.setMinutes(0);
     startOfDay.setSeconds(0);
-    // var time = startDate.getTime() + Math.floor((now.getTime() - startOfDay.getTime())/scale);
-    var time = now.getTime() + 100000
+    var time = startDate.getTime() + Math.floor((now.getTime() - startOfDay.getTime())/scale);
     console.log("Time:");
     console.log(now.getTime())
     console.log(time)
