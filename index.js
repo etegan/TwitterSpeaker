@@ -47,9 +47,13 @@ function scheduleReading(tweet){
     winston.info(scheduledDate);
     var time = timeForTask(scheduledDate);
     var pathname = mp3Path(time);
-    var lang = (tweet.lang == "en") ? "karen22k" : "alice22k";
+    var lang = (tweet.lang == "en") ? "mov_houda_eng22k" : "mov_houda_frf22k";
     mkdirp(path.dirname(pathname));
-    synthesizeText(tweet.text, lang, pathname).then(function(){
+    console.log(tweet);
+    winston.info(tweet.truncated);
+    var text = tweet.truncated ? tweet.extended_tweet.full_text : tweet.text
+    winston.info(text);
+    synthesizeText(text, lang, pathname).then(function(){
         var at = spawn("at", ['-t', time]);
         at.stdin.write(format("mpg123 %s\n", pathname));
         at.stdin.end();
