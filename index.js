@@ -50,7 +50,7 @@ function scheduleReading(tweet){
     var lang = (tweet.lang == "en") ? "mov_houda_eng22k" : "mov_houda_frf22k";
     mkdirp(path.dirname(pathname));
     var text = tweet.truncated ? tweet.extended_tweet.full_text : tweet.text
-    synthesizeText(text, lang, pathname).then(function(){
+    synthesizeText('\\rspd=95\\'+text, lang, pathname).then(function(){
         var at = spawn("at", ['-t', time]);
         at.stdin.write(format("mpg123 %s\n", pathname));
         at.stdin.end();
@@ -136,4 +136,3 @@ function calculateDateForTask(startDate, scale){
 function leadingZero(time){
     return (time < 10 ? "0" : "") + time
 }
-
